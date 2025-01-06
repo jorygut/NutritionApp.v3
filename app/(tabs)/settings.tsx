@@ -16,7 +16,7 @@ const SettingsScreen: React.FC = () => {
         style={styles.optionContainer}
         onPress={() => navigateToOption('settings/login')}
       >
-        <Text style={styles.optionText}>Profile</Text>
+        <Text style={styles.optionText}>Log Out</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.optionContainer}

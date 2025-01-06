@@ -4,6 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import BackButton from '../backButton';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
+import CaloriePieChart from './caloriePieChart';
 
 const SeeDetails: React.FC = () => {
   //Declare routes and routers
@@ -72,6 +73,13 @@ const SeeDetails: React.FC = () => {
             <Text style={styles.totalsText}>Fat: {totalFat.toFixed(1)}g</Text>
             <Text style={styles.totalsText}>Carbohydrates: {totalCarbs.toFixed(1)}g</Text>
       </View>
+      <View style={styles.pie}>
+        <CaloriePieChart
+            protein={totalProtein}
+            carbs={totalFat}
+            fat={totalCarbs}
+        />
+      </View>
       
       {mealData && mealData.foods ? (
         <>
@@ -102,9 +110,6 @@ const FoodItem = ({ food, onRemove, removeFood }) => {
 
   return (
     <Animated.View style={[styles.foodItem, { opacity: fadeAnim }]}>
-      <View style={styles.remove}>
-        <Button title='REMOVE' onPress={handleRemove} color='red' />
-      </View>
     <Text style={styles.foodName}>{food.description}</Text>
     <Text>Servings: {food.selected_servings || '0'}</Text>
     <Text>Calories: {(food.calories ? food.calories.toFixed(1) : '0')}</Text>
@@ -121,6 +126,9 @@ const FoodItem = ({ food, onRemove, removeFood }) => {
       {food.ingredients && (
         <Text>Ingredients: {food.ingredients}</Text>
       )}
+      <View style={styles.remove}>
+        <Button title='REMOVE' onPress={handleRemove} color='red' />
+      </View>
     </Animated.View>
   );
 };
@@ -140,19 +148,24 @@ const styles = StyleSheet.create({
   },
   foodName: {
     fontWeight: 'bold',
+    fontSize: 24,
   },
   totalsContainer: {
-    marginTop: 16,
+    marginTop: 5,
   },
   totalsText: {
     fontSize: 16,
     fontWeight: 'bold',
-    flexDirection: 'row'
+    flexDirection: 'row',
+    margin: 4,
   },
   remove: {
     position: 'relative',
     left: 130,
     fontSize: 12,
+  },
+  pie: {
+    position: 'relative',
   }
 });
 

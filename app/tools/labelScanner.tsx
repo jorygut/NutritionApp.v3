@@ -54,11 +54,11 @@ export default function App() {
       const formData = new FormData();
       formData.append('image', {
         uri: photo,
-        type: 'image/jpeg', // Assuming the photo is a JPEG
-        name: 'photo.jpg', // Optional filename
+        type: 'image/jpeg',
+        name: 'photo.jpg',
       });
   
-      const response = await axios.post('https://nutritionapi-zivc.onrender.com/manageLabel', formData, {
+      const response = await axios.post('http://127.0.0.1:5000/manageLabel', formData, {
         headers: {
           'Content-Type': 'multipart/form-data', 
         },

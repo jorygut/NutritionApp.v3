@@ -22,20 +22,6 @@ const HomeScreenStats: React.FC = () => {
           color="#3e5a9c"
         />
       </View>
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Edit Budget"
-          onPress={() => navigation.navigate('goals/goal3')}
-          color="#3e5a9c"
-        />
-      </View>
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Edit Kitchen"
-          onPress={() => navigation.navigate('goals/goal4')}
-          color="#3e5a9c"
-        />
-      </View>
     </View>
   );
 };

@@ -138,7 +138,6 @@ const Measurements: React.FC = () => {
 
     return (
         <View style={styles.container}>
-            <BackButton onPress={() => router.push('/')} />
             <View style={styles.recs}>
                 <TouchableOpacity onPress={() => setShowDetails1(!showDetails1)}>
                 <Animated.View style={{ ...styles.animatedView, transform: [{ translateX: slideAnim1 }] }}>
@@ -202,8 +201,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#f8f8f8',
         padding: 15,
         borderRadius: 8,
-        elevation: 3, // Adds a subtle shadow on Android
-        shadowColor: '#000', // Adds shadow on iOS
+        elevation: 3,
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 3,

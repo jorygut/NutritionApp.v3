@@ -33,8 +33,8 @@ const HomeScreenGoals: React.FC = () => {
       </View>
       <View style={styles.buttonContainer}>
         <Button
-          title="Edit Kitchen"
-          onPress={() => navigation.navigate('goals/goal4')}
+          title="Update Goals"
+          onPress={() => navigation.navigate('goals/updateGoals')}
           color="#3e5a9c"
         />
       </View>

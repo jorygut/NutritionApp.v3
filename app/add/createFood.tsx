@@ -91,7 +91,6 @@ const CreateFood = () => {
 
     return (
         <ScrollView style={styles.container}>
-            <BackButton onPress={() => navigation.navigate('add/addFood')} />
             <TextInput 
                 style={styles.description}
                 placeholder="Food Name"

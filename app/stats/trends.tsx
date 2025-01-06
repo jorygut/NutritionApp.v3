@@ -244,7 +244,6 @@ const NutritionTrends: React.FC = () => {
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
-            <BackButton onPress={() => router.back()} />
             <Text style={styles.title}>Nutrition Trends</Text>
             {loading && <ActivityIndicator size="large" color="#0000ff" />}
             {error && <Text style={styles.error}>{error}</Text>}

@@ -9,7 +9,7 @@ import axios from 'axios';
 import { Dropdown } from 'react-native-element-dropdown';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const AddDetails: React.FC = () => {
+const AddKitchenDetails: React.FC = () => {
   const route = useRoute();
   const router = useRouter();
   const navigation = useNavigation();
@@ -38,16 +38,13 @@ const AddDetails: React.FC = () => {
   const [including, setIncluding] = useState([]);
   const [numericServing, setNumericServing] = useState(() => {
     const serving = food.servingSize || food.serving_size || "1 unit";
-    if (typeof serving === "string") {
-      return parseInt(serving.split(" ")[0], 10);
-    }
-    return 1; // Default value
+    
+    return parseInt(serving.split(" ")[0], 10);
   });
-  
   const displayedServing = `${food.servingSize}`;
 
   const servingData = [
-    { label: `${food.servingSize} ${food.servingSizeUnit}`, value: 1 },
+    { label: `${food.servingSize}`, value: 1 },
     { label: `1 ${food.servingSizeUnit}`, value: 2 }
   ];
 
@@ -348,7 +345,7 @@ const styles = StyleSheet.create({
   addButton: {
     position: 'relative',
     left: 300,
-    bottom: 10,
+    bottom: 40,
     backgroundColor: '#007bff',
     borderRadius: 50,
     width: 60,
@@ -370,4 +367,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddDetails;
+export default AddKitchenDetails;

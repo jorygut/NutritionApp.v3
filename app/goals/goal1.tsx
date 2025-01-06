@@ -179,9 +179,6 @@ const Goal1: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <BackButton onPress={() => router.push('/')} />
-      </View>
       <TouchableOpacity onPress={() => navigation.navigate('goals/calculateCalories')}>
           <Text style={styles.unsure}>Unsure about your calorie and macronutrient intake? Click here</Text>
         </TouchableOpacity>

@@ -92,7 +92,6 @@ const CoachSettings: React.FC = () => {
     }, [])
     return(
         <View>
-            <BackButton onPress={() => router.push('/')}/>
             <View style={styles.switchContainer}>
                 {coachEnabled && (
                     <Text style={styles.switchLabel}>Disable Virtual Coach</Text>

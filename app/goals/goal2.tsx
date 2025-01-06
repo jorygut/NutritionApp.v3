@@ -114,6 +114,26 @@ const Goal2: React.FC = () => {
       console.error('Error retrieving weights:', error);
     }
   }
+  const GetCoachInput = async () =>{
+    try{
+      const token = await SecureStore.getItemAsync('userToken');
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+    const response = await axios.get('http://127.0.0.1:5000/getCoachWeight', config);
+    if (response.status === 200){
+      console.log(response)
+    }
+    else{
+      console.log('failed to retrieve coach insights')
+    }
+    }
+    catch(error){
+      console.log(error)
+    }
+  }
 
   useEffect(() => {
     const data = retrieveWeights();
@@ -128,17 +148,20 @@ const Goal2: React.FC = () => {
     <View>
       <Text>Last Week's Average Weight: {(lastWeekAverage ?? 0).toFixed(1)}</Text>
     </View>
-    {((lastWeekAverage ?? 0) - (weeklyAverage ?? 0)) > 0 ? (
+    {((weeklyAverage ?? 0) - (lastWeekAverage ?? 0)) > 0 ? (
       <View>
-        <Text style={styles.changeRed}>
-          Change: {((lastWeekAverage ?? 0) - (weeklyAverage ?? 0)).toFixed(1)}
+        <Text style={styles.changeGreen}>
+          Change: {((weeklyAverage ?? 0) - (lastWeekAverage ?? 0)).toFixed(1)}
         </Text>
       </View>
     ) : (
       <Text style={styles.changeRed}>
-        Change: {((lastWeekAverage ?? 0) - (weeklyAverage ?? 0)).toFixed(1)}
+        Change: {((weeklyAverage ?? 0) - (lastWeekAverage ?? 0)).toFixed(1)}
       </Text>
     )}
+      <TouchableOpacity style={styles.coach} onPress={()=> GetCoachInput()}>
+        <Text>Coach Insights</Text>
+      </TouchableOpacity>
     <View style={styles.container}>
       <TextInput
         value={dailyWeight}
@@ -290,6 +313,16 @@ const styles = StyleSheet.create({
   },
   changeRed: {
     color: 'red'
+  },
+  coach: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 1,
+    paddingVertical: 3,
+    alignSelf: 'center',
+    position: 'relative',
+    left: 120,
+    bottom: 40,
   }
 });
 

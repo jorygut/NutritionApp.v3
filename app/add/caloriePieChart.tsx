@@ -10,24 +10,24 @@ const CaloriePieChart = ({ protein, carbs, fat }) => {
   const fatCalories = Math.round(fat * 9);
 
   const data = [
-    { name: 'Calories from Protein', population: proteinCalories, color: '#FF6384' },
-    { name: 'Calories from Carbs', population: carbCalories, color: '#36A2EB' },
-    { name: 'Calories from Fat', population: fatCalories, color: '#FFCE56' },
+    { population: proteinCalories, color: '#FF6384' },
+    { population: carbCalories, color: '#36A2EB' },
+    { population: fatCalories, color: '#FFCE56' },
   ];
 
   return (
     <View style={styles.container}>
       <PieChart
         data={data}
-        width={screenWidth} 
-        height={180} 
+        width={screenWidth}
+        height={180}
         chartConfig={{
           color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
         }}
         accessor="population"
         backgroundColor="transparent"
         paddingLeft="15"
-        absolute
+        hasLegend={false}
       />
     </View>
   );
@@ -35,8 +35,8 @@ const CaloriePieChart = ({ protein, carbs, fat }) => {
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
   },
 });
 

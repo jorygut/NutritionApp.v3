@@ -137,7 +137,6 @@ const LineGraph = () => {
 
   return (
     <View style={styles.container}>
-      <BackButton onPress={() => router.push('/goals/goal2')} />
       <ScrollView>
         {Object.keys(weightLogs).map((monthYear) => (
           <View key={monthYear} style={styles.monthContainer}>

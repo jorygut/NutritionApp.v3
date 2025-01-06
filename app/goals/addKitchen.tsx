@@ -7,7 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const AddFood: React.FC = () => {
+const Kitchen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const router = useRouter();
@@ -46,7 +46,7 @@ const AddFood: React.FC = () => {
 
   const fetchFoodData = async () => {
     const token = await SecureStore.getItemAsync('userToken')
-    fetch(`https://nutritionapi-zivc.onrender.com/food?query=${encodeURIComponent(query)}&searchLength=${searchLength}&token=${(token)}`)
+    fetch(`https://nutritionapi-zivc.onrender.com/foodKitchen?query=${encodeURIComponent(query)}&searchLength=${searchLength}&token=${(token)}`)
       .then((response) => response.json())
       .then((data) => {
         const formattedData = data.map(item => ({
@@ -77,7 +77,7 @@ const AddFood: React.FC = () => {
   };
   const fetchFoodDataHistory = async () => {
     const token = await SecureStore.getItemAsync('userToken')
-    fetch(`https://nutritionapi-zivc.onrender.com/foodHistory?query=${encodeURIComponent(query)}&token=${encodeURIComponent(token)}&searchLength=${searchLength}`)
+    fetch(`https://nutritionapi-zivc.onrender.com/foodHistoryKitchen?query=${encodeURIComponent(query)}&token=${encodeURIComponent(token)}&searchLength=${searchLength}`)
       .then((response) => response.json())
       .then((data) => {
         const formattedData = data.map(item => ({
@@ -118,7 +118,7 @@ const AddFood: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
       };
-      const response = await axios.get('https://nutritionapi-zivc.onrender.com/retreiveRecentHistory', config);
+      const response = await axios.get('https://nutritionapi-zivc.onrender.com/retreiveRecentHistoryKitchen', config);
   
       if (response.status === 200) {
         const formattedData = response.data.map(item => ({
@@ -163,7 +163,7 @@ const AddFood: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
       };
-      const response = await axios.get('https://nutritionapi-zivc.onrender.com/retrieveCustom', config)
+      const response = await axios.get('https://nutritionapi-zivc.onrender.com/retrieveCustomKitchen', config)
       if (response.status === 200){
         const data = response.data
         console.log(response.data)
@@ -199,7 +199,7 @@ const AddFood: React.FC = () => {
   const fetchFoodDataCustom = async () => {
     try {
         const token = await SecureStore.getItemAsync('userToken');
-        const response = await fetch(`https://nutritionapi-zivc.onrender.com/foodCustom?query=${encodeURIComponent(query)}&token=${encodeURIComponent(token)}&searchLength=${searchLength}`);
+        const response = await fetch(`https://nutritionapi-zivc.onrender.com/foodCustomKitchen?query=${encodeURIComponent(query)}&token=${encodeURIComponent(token)}&searchLength=${searchLength}`);
         const data = await response.json();
         
         const formattedData = data.map(item => ({
@@ -268,7 +268,7 @@ const AddFood: React.FC = () => {
         throw new Error('Token not found in SecureStore');
       }
 
-      const response = await fetch('https://nutritionapi-zivc.onrender.com/log', {
+      const response = await fetch('https://nutritionapi-zivc.onrender.com/logKitchen', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -309,7 +309,7 @@ const AddFood: React.FC = () => {
 
   const IdentifyAvoidingIngredient = (ingredient) => {
     if (!ingredient) {
-      return false;
+      return false; // If ingredient is null, undefined, or empty, return false
     }
     const trimmedIngredient = ingredient.trim();
     return avoiding.map(item => item.trim()).includes(trimmedIngredient);
@@ -317,7 +317,7 @@ const AddFood: React.FC = () => {
   
   const IdentifyIncludingIngredient = (ingredient) => {
     if (!ingredient || ingredient.length === 0) {
-      return false;
+      return false; // If ingredient is null, undefined, or empty, return false
     }
     const trimmedIngredient = ingredient.trim();
     return including.map(item => item.trim()).includes(trimmedIngredient);
@@ -354,7 +354,7 @@ const AddFood: React.FC = () => {
         <Text style={styles.foodDetails}>Protein: {item.protein}g</Text>
         <Text style={styles.foodDetails}>Fat: {item.fat}g</Text>
         <Text style={styles.foodDetails}>Carbs: {item.carbohydrates}g</Text>
-        <Text style={styles.foodDetails}>Serving: {item.servingSize} {item.servingSizeUnit}</Text>
+        <Text style={styles.foodDetails}>Serving: {item.servingSize}</Text>
         {(item.avoiding.length > 0) && (
         <Text style={styles.foodDetailsWarning}>Contains {item.avoiding}</Text>
         )}
@@ -366,9 +366,7 @@ const AddFood: React.FC = () => {
           onPress={() => handleAddFood(item)}
         />
         {(item.verified && (
-          <TouchableOpacity style={styles.verified} onPress={() => console.log('verified')}>
-          <Icon name="check-bold" size={24} color="green" />
-          </TouchableOpacity>
+          <Icon style={styles.verified} name="check-bold" size={24} color="green" />
         ))}
       </TouchableOpacity>
     </View>
@@ -516,4 +514,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default AddFood;
+export default Kitchen;

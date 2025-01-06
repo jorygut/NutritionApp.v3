@@ -382,11 +382,11 @@ const HomeScreen: React.FC = () => {
       </View>
       <View style={styles.tableHeader}>
         <Text style={[styles.columnHeader, styles.columnHeaderName]}>Name</Text>
-        <Text style={[styles.columnHeader, styles.columnHeaderSmall]}>Cals</Text>
+        <Text style={[styles.columnHeader, styles.columnHeaderSmallCals]}>Cals</Text>
         <Text style={[styles.columnHeader, styles.columnHeaderSmall]}>Serv</Text>
-        <Text style={[styles.columnHeader, styles.columnHeaderSmall]}>P</Text>
-        <Text style={[styles.columnHeader, styles.columnHeaderSmall]}>F</Text>
-        <Text style={[styles.columnHeader, styles.columnHeaderSmall]}>C</Text>
+        <Text style={[styles.columnHeader, styles.columnHeaderSmallProt]}>P</Text>
+        <Text style={[styles.columnHeader, styles.columnHeaderSmallFat]}>F</Text>
+        <Text style={[styles.columnHeader, styles.columnHeaderSmallCarb]}>C</Text>
       </View>
       <FlatList
         data={item.foods}
@@ -618,6 +618,30 @@ const styles = StyleSheet.create({
   columnHeaderSmall: {
     flex: 1,
     paddingHorizontal: 1, 
+  },
+  columnHeaderSmallCals: {
+    flex: 1,
+    paddingHorizontal: 1, 
+    position: 'relative',
+    left: 10,
+  },
+  columnHeaderSmallProt: {
+    flex: 1,
+    paddingHorizontal: 1, 
+    position: 'relative',
+    right: 15,
+  },
+  columnHeaderSmallFat: {
+    flex: 1,
+    paddingHorizontal: 1, 
+    position: 'relative',
+    right: 28,
+  },
+  columnHeaderSmallCarb: {
+    flex: 1,
+    paddingHorizontal: 1, 
+    position: 'relative',
+    right: 45,
   },
   columnFood: {
     flex: 3, 
