@@ -13,22 +13,25 @@ import pytesseract
 from PIL import Image
 import re
 import random
+import easyocr
+import os
 
 app = Flask(__name__)
 CORS(app)
 # Declare Engine
-DATABASE_URI = 'postgresql://postgres@localhost:5432/yourdatabase'
+DATABASE_URI = os.getenv('DATABASE_URI')
 engine = create_engine(DATABASE_URI)
 #Declare Nutrition Engine
-NUTRITION_DATABASE_URI = 'postgresql://postgres@localhost:5432/nutritiondb'
+NUTRITION_DATABASE_URI = os.getenv('NUTRITION_DATABASE_URI')
 nutrition_engine = create_engine(NUTRITION_DATABASE_URI)
 #Declare User Engine
-USER_DATABASE_URI = 'postgresql://postgres@localhost:5432/userdb'
+USER_DATABASE_URI = os.getenv('USER_DATABASE_URI')
 user_engine = create_engine(USER_DATABASE_URI)
 Session = sessionmaker(bind=user_engine)
 session = Session()
 
-@app.route('/api/food', methods=['GET'])
+# Query food database
+@app.route('/food', methods=['GET'])
 def get_food_data():
     query = request.args.get('query')
     search_length = request.args.get('searchLength')
@@ -45,9 +48,11 @@ def get_food_data():
             food_data = [dict(zip(result.keys(), row)) for row in result]
     
     return jsonify(food_data)
-
+# Search Food Database
 def search(query, length, username):
     search_column = 'Name'
+
+    formatted_query = ' & '.join(query.split())
 
     results = []
     seen_descriptions = set()
@@ -62,7 +67,7 @@ def search(query, length, username):
         ORDER BY "verified" ASC
         LIMIT {length}
         """)
-        result = connection.execute(query_text, {'query': query})
+        result = connection.execute(query_text, {'query': formatted_query})
         
         for row in result:
             name = row[0]
@@ -114,7 +119,8 @@ def search(query, length, username):
                 })
     return results
 
-@app.route('/api/foodHistory', methods=['GET'])
+# Query food history database
+@app.route('/foodHistory', methods=['GET'])
 def get_food_data_history():
     query = request.args.get('query')
     length = request.args.get('searchLength')
@@ -126,7 +132,7 @@ def get_food_data_history():
             food_data = [dict(zip(result.keys(), row)) for row in result]
     
     return jsonify(food_data)
-
+# Search food history database
 def search_history(query, length):
     token = request.args.get('token')
     print(token)
@@ -167,7 +173,6 @@ def search_history(query, length):
             serving_multiplier = res[18]
             servings_value, serving_unit = selected_servings.split(' ')
 
-            # Calculate the new serving size
             serving_size = f'{float(servings_value) / float(serving_multiplier):.2f} {serving_unit}'
             if description not in seen_descriptions:
                 seen_descriptions.add(description)
@@ -196,7 +201,9 @@ def search_history(query, length):
                                 'including': including
                                 })
     return results
-@app.route('/api/foodCustom', methods=['GET'])
+
+# Query custom foods
+@app.route('/foodCustom', methods=['GET'])
 def get_food_data_custom():
     query = request.args.get('query')
     length = request.args.get('searchLength')
@@ -214,7 +221,7 @@ def get_food_data_custom():
             food_data = [dict(zip(result.keys(), row)) for row in result]
     
     return jsonify(food_data)
-
+# Search custom foods
 def search_custom(query, length, username):
     results = []
     seen_descriptions = set()
@@ -279,7 +286,8 @@ def search_custom(query, length, username):
     print(f'Results: {results}')
     return results
 
-@app.route('/api/retreiveRecentHistory', methods=['GET'])
+# Query recent foods
+@app.route('/retreiveRecentHistory', methods=['GET'])
 def retrieve_recent_logs():
     auth = request.headers.get('Authorization')
     if auth:
@@ -329,16 +337,14 @@ def retrieve_recent_logs():
                 description = res[17]
                 serving_multiplier = res[18]
                 
-            if selected_servings == 'null':
-                serving_size = 1  # Default serving size when selected_servings is 'null'
-            elif len(selected_servings.split(' ')) > 1:
-                # More than one part means it contains a unit (e.g., "28 g")
-                parts = selected_servings.split(' ')
-                value = float(parts[0]) / float(serving_multiplier)
-                serving_size = f'{value} {parts[1]}'
-            else:
-                # Only one part, meaning it is just a number (e.g., "28")
-                serving_size = float(selected_servings) / float(serving_multiplier)
+                if selected_servings == 'null':
+                    serving_size = 1
+                elif len(selected_servings.split(' ')) > 1:
+                    parts = selected_servings.split(' ')
+                    value = float(parts[0]) / float(serving_multiplier)
+                    serving_size = f'{value} {parts[1]}'
+                else:
+                    serving_size = float(selected_servings) / float(serving_multiplier)
 
                 if description not in seen_descriptions:
                     seen_descriptions.add(description)
@@ -369,7 +375,9 @@ def retrieve_recent_logs():
 
         return jsonify(results)
     return jsonify({"error": "Unauthorized"}), 401
-@app.route('/api/retrieveCustom', methods=['GET'])
+
+# Retrieve custom food
+@app.route('/retrieveCustom', methods=['GET'])
 def retrieve_custom():
     auth = request.headers.get('Authorization')
     if auth:
@@ -430,8 +438,8 @@ def retrieve_custom():
             
 
     return final_results
-
-@app.route('/api/profile', methods=['POST'])
+# Handle password input
+@app.route('/profile', methods=['POST'])
 def create_profile():
     data = request.json
     username = data.get('username')
@@ -452,17 +460,16 @@ def create_profile():
                 """),
                 {'username': username, 'email': email, 'password': password}
             )
-            # Commit the transaction
             connection.commit()
         
         return jsonify({'message': 'Profile created successfully'}), 201
 
     except Exception as e:
-        # Rollback the transaction if there's an error
         connection.rollback()
         return jsonify({'error': str(e)}), 500
     
-@app.route('/api/login', methods=['POST'])
+# Handle login credentials
+@app.route('/login', methods=['POST'])
 def login():
     data = request.json
     username = data.get('username')
@@ -477,11 +484,9 @@ def login():
         user = result.fetchone()
 
     if user:
-        # Generate a new token
         token = str(uuid.uuid4())
         print(f"Generated token: {token}")
 
-        # Update the users table with the new token
         update_sql = text("UPDATE users SET token = :token WHERE username = :username")
         with user_engine.connect() as conn:
             update_result = conn.execute(update_sql, {'token': token, 'username': username})
@@ -494,6 +499,8 @@ def login():
         return jsonify({'token': token}), 200
     else:
         return jsonify({'error': 'Invalid username or password'}), 401
+
+# Query user databae by token
 def get_user_from_token(token):
     sql = text("SELECT * FROM users WHERE token = :token")
     with user_engine.connect() as conn:
@@ -501,7 +508,8 @@ def get_user_from_token(token):
         user = result.fetchone()
     return user
 
-@app.route('/api/log', methods=['POST'])
+# Add food to logged foods database
+@app.route('/log', methods=['POST'])
 def log_food():
     data = request.json
     current_date = datetime.now().strftime('%Y-%m-%d')
@@ -512,7 +520,6 @@ def log_food():
         return jsonify({'error': 'Invalid date format'}), 400
     print(data['date'])
 
-    # Extract token from Authorization header
     authorization_header = request.headers.get('Authorization')
     if authorization_header:
         token = authorization_header.split()[1]
@@ -563,7 +570,8 @@ def log_food():
     else:
         return jsonify({'error': 'Missing authorization token'}), 401
 
-@app.route('/api/meals', methods=['GET', 'POST'])
+# Retrieve meal history
+@app.route('/meals', methods=['GET', 'POST'])
 def retrieve_meals():
     print('retreiving meals')
     date = request.args.get('activateDate')
@@ -581,7 +589,6 @@ def retrieve_meals():
     if not date:
         return jsonify({'error': 'activateDate not provided'}), 400
     
-    # Validate and reformat the date
     try:
         reformatted_date = datetime.strptime(date, '%d-%m-%Y').strftime('%Y-%m-%d')
     except ValueError:
@@ -613,7 +620,8 @@ def retrieve_meals():
 
     return jsonify(meals_list)
 
-@app.route('/api/remove', methods=['POST'])
+# Remove logged food
+@app.route('/remove', methods=['POST'])
 def remove_food():
     data = request.get_json()
     food = data.get('food')
@@ -623,7 +631,6 @@ def remove_food():
     user_id = food['user_id']
 
     try:
-        # Perform the delete operation
         session.execute(
             text(""" DELETE FROM logged_food 
                      WHERE description = :description AND date = :log_date
@@ -639,7 +646,8 @@ def remove_food():
     finally:
         session.close()
 
-@app.route('/api/removemeal', methods=['POST'])
+# Remove meal
+@app.route('/removemeal', methods=['POST'])
 def remove_meal():
     data = request.get_json()
     cur_date = data.get('date')
@@ -668,7 +676,9 @@ def remove_meal():
             session.rollback()
 
     return 'balls'
-@app.route('/api/update_meals', methods=['POST'])
+
+# Update meal ordering
+@app.route('/update_meals', methods=['POST'])
 def update_meals():
     data = request.get_json()
     cur_date = data.get('date')
@@ -679,7 +689,6 @@ def update_meals():
     user_data = get_user_from_token(token)
     user_id = user_data[1]
     
-    # Step 1: Retrieve the logged meals for the specific date and user
     get_meals_query = text("""
         SELECT id, meal 
         FROM logged_food 
@@ -690,12 +699,10 @@ def update_meals():
     with user_engine.connect() as conn:
         meals = conn.execute(get_meals_query, {'cur_date': formatted_date, 'user_id': user_id}).fetchall()
         
-        # Step 2: Reassign the meal numbers starting from 1
         for i, meal_record in enumerate(meals, start=1):
-            meal_id = meal_record[0]  # 'id' is the first item in the tuple
+            meal_id = meal_record[0]
             new_meal = f'Meal {i}'
             
-            # Step 3: Update the table with the new meal numbers
             update_meal_query = text("""
                 UPDATE logged_food 
                 SET meal = :new_meal 
@@ -708,7 +715,8 @@ def update_meals():
     
     return jsonify({'message': 'Meals updated successfully'}), 200
 
-@app.route('/api/setNutrientGoals', methods=['POST'])
+# Set nutrition goals
+@app.route('/setNutrientGoals', methods=['POST'])
 def set_goals():
     data = request.get_json()
     calories = data.get('calories')
@@ -751,7 +759,8 @@ def set_goals():
     print('Update Successful')
     return "balls"
 
-@app.route('/api/fetchNutrientGoals', methods=['GET'])
+# Retrieve nutrition goals
+@app.route('/fetchNutrientGoals', methods=['GET'])
 def send_nutrient_goals():
     token = request.headers.get('Authorization')
     if token:
@@ -768,7 +777,6 @@ def send_nutrient_goals():
             result = conn.execute(fetch_query, {'token': token}).fetchone()
 
             if result:
-                # Accessing result by index instead of column name
                 nutrient_goals = {
                     'goal_calories': result[0],
                     'goal_protein': result[1],
@@ -785,7 +793,9 @@ def send_nutrient_goals():
                 return jsonify({'error': 'No goals found for the provided token'}), 404
     else:
         return jsonify({'error': 'Token is missing'}), 403
-@app.route('/api/removeIngredient', methods=['POST'])
+
+# Remove ingredient from avoiding
+@app.route('/removeIngredient', methods=['POST'])
 def remove_ingredient():
     data = request.json
     token = data.get('token')
@@ -810,12 +820,14 @@ def remove_ingredient():
         conn.commit()
 
     return "Success"
-    
-@app.route('/api/logWeight', methods=['POST', 'GET'])
+
+@app.route('/logWeight', methods=['POST', 'GET'])
 def log_weight():
     token = request.headers.get('Authorization')
     data = request.get_json()
     weight = data['weight']
+    recorded_at = data.get('recorded_at', datetime.now().strftime('%d-%m-%Y'))
+    
     if token:
         token = token.split(" ")[1]
         print(f'fetched token: {token}')
@@ -823,17 +835,18 @@ def log_weight():
         user_data = get_user_from_token(token)
         username = user_data[1]
 
-    log_query = text("""INSERT INTO user_weight (username, weight)
-                        VALUES (:username, :weight)""")
+    log_query = text("""INSERT INTO user_weight (username, weight, recorded_at)
+                        VALUES (:username, :weight, to_timestamp(:recorded_at, 'DD-MM-YYYY'))""")
     try:
         with user_engine.connect() as conn:
-            conn.execute(log_query, {'weight': weight, 'username': username})
+            conn.execute(log_query, {'weight': weight, 'username': username, 'recorded_at': recorded_at})
             conn.commit()
         return jsonify({'message': 'Weight logged successfully'}), 201
     except Exception as e:
         print('failed to log weight:', e)
         return jsonify({'error': 'Failed to log weight'}), 500
-@app.route('/api/retreiveWeight', methods=['GET'])
+
+@app.route('/retreiveWeight', methods=['GET'])
 def retreive_weight_data(): 
     try:
         token = request.headers.get('Authorization')
@@ -856,7 +869,6 @@ def retreive_weight_data():
                 
                 print(f"Weight Results: {results}")
             
-            # Access each column by index
             weights = [{"weight": row[0], "date": row[1], "unit": row[2], "index": row[3]} for row in results]
 
             response_data = [
@@ -897,7 +909,9 @@ def retreive_weight_data():
     except Exception as e:
         print(f"An error occurred: {e}")
         return {"error": "An internal server error occurred"}, 500
-@app.route('/api/removeWeight', methods=['POST'])
+    
+# Remove weight from history
+@app.route('/removeWeight', methods=['POST'])
 def remove_weight():
     token = request.headers.get('Authorization')
     data = request.json.get('logs')
@@ -919,7 +933,6 @@ def remove_weight():
         
         user_id = user_data[1]
 
-        # Correct the SQL DELETE statement
         query = """DELETE FROM user_weight 
                    WHERE username = :user_id 
                    AND index = :index
@@ -931,8 +944,8 @@ def remove_weight():
             print(f"Rows affected: {result.rowcount}")
             
     return "Success"
-
-@app.route('/api/calculateWeightChange')
+# Calculate moving average of weight
+@app.route('/calculateWeightChange')
 def calculate_weight_change():
     try:
         token = request.headers.get('Authorization')
@@ -992,8 +1005,8 @@ def calculate_weight_change():
         print(f'Failed: {e}')
         return {"error": "Failed to calculate weight change"}, 500
 
-    
-@app.route('/api/updateHistory')
+# Update meal history
+@app.route('/updateHistory')
 def update_user_data():
     authorization_header = request.headers.get('Authorization')
     
@@ -1021,7 +1034,6 @@ def update_user_data():
         result = conn.execute(retrieve_query, {'user_id': user_data[1]})
         meals = result.fetchall()
         
-    # Manually map the rows to a dictionary
     meals_dicts = [
         {
             'user_id': row[0],
@@ -1063,7 +1075,6 @@ def update_user_data():
     avg_fat = total_fat / day_count
     avg_carbs = total_carbs / day_count
 
-    # Prepare the response data
     response_data = {
         'meals': meals_dicts,
         'totals': {
@@ -1082,7 +1093,76 @@ def update_user_data():
 
     return jsonify(response_data)
 
-@app.route('/api/checkIngredients', methods=['POST'])
+# Get weekly average weight
+@app.route('/getAverageWeeklyWeight', methods=['GET'])
+def get_average_weekly_weight():
+    try:
+        token = request.headers.get('Authorization')
+        if token:
+            token = token.split(" ")[1]
+            print(f'Fetched token: {token}')
+
+            user_data = get_user_from_token(token)
+            if not user_data:
+                return {"error": "Invalid token"}, 401
+            
+            user_id = user_data[1]
+
+            query = text("""SELECT weight, recorded_at, unit, index FROM user_weight
+                            WHERE username = :user_id
+                            ORDER BY recorded_at
+            """)
+
+            with user_engine.connect() as conn:
+                result = conn.execute(query, {'user_id': user_id})
+                data = result.fetchall()
+
+            response_data = [
+                {
+                    'weight': row[0],
+                    'recorded_at': row[1],
+                    'unit': row[2],
+                    'index': row[3]
+                }
+                for row in data
+            ]
+
+            weights = [d['weight'] for d in response_data]
+            dates = [d['recorded_at'] for d in response_data]
+
+            current_week_weights = []
+            week_start_date = dates[-1]
+            for weight, date in zip(weights, dates):
+                if date >= week_start_date - timedelta(days=7) and date <= week_start_date:
+                    current_week_weights.append(weight)
+
+            if current_week_weights:
+                average_weight_current_week = sum(current_week_weights) / len(current_week_weights)
+            else:
+                average_weight_current_week = None
+
+            previous_week_weights = []
+            for weight, date in zip(weights, dates):
+                if date >= week_start_date - timedelta(days=14) and date < week_start_date - timedelta(days=7):
+                    previous_week_weights.append(weight)
+
+            if previous_week_weights:
+                average_weight_previous_week = sum(previous_week_weights) / len(previous_week_weights)
+            else:
+                average_weight_previous_week = None
+
+            return {
+                "current_week_average_weight": average_weight_current_week,
+                "previous_week_average_weight": average_weight_previous_week
+            }, 200
+        else:
+            return {"error": "Authorization header missing"}, 400
+    except Exception as e:
+        print(f'Failed: {e}')
+        return {"error": "Failed to calculate average weekly weight"}, 500
+
+# Check for including or avoiding ingredients
+@app.route('/checkIngredients', methods=['POST'])
 def check_ingredients():
     authorization_header = request.headers.get('Authorization')
     if authorization_header:
@@ -1113,6 +1193,7 @@ def check_ingredients():
                 matched_ingredients_include.append(ingredient)
     return jsonify(matched_ingredients_avoid, matched_ingredients_include)
 
+# Check for similar ingredients
 def reuseable_ingredient_check(username, ingredients):
     query = text(""" SELECT avoiding_ingredients, including_ingredients FROM users WHERE username = :user_id """)
 
@@ -1139,15 +1220,11 @@ def reuseable_ingredient_check(username, ingredients):
         matched_ingredients_include = []
     return matched_ingredients_avoid, matched_ingredients_include
 
-
-from datetime import datetime, timedelta
-
+# Calculate TDEE
 def calculate_maintenance_calories(weights, calorie_intakes):
-    # Get today's date and the date 30 days ago
     today = datetime.today().date()
     past_month_date = today - timedelta(days=30)
     
-    # Filter dates to include only those within the past month
     valid_dates = [
         date for date in sorted(set(weights.keys()).union(set(calorie_intakes.keys())))
         if past_month_date <= date <= today and date in weights and date in calorie_intakes
@@ -1156,7 +1233,6 @@ def calculate_maintenance_calories(weights, calorie_intakes):
     if not valid_dates:
         raise ValueError("No overlapping dates between weights and calorie intakes within the past month.")
     
-    # Determine the start and end weights as averages over 7 days if there are more than 7 valid dates
     if len(valid_dates) > 7:
         start_weight = sum(weights[date] for date in valid_dates[:7]) / 7
         end_weight = sum(weights[date] for date in valid_dates[-7:]) / 7
@@ -1176,8 +1252,8 @@ def calculate_maintenance_calories(weights, calorie_intakes):
     
     return maintenance_calories, average_daily_intake, (caloric_surplus_deficit / 7)
 
-
-@app.route('/api/bodyMeasurements', methods=['GET'])
+# Retrieve body measurements
+@app.route('/bodyMeasurements', methods=['GET'])
 def retrieve_measurements():
     auth = request.headers.get('Authorization')
     if auth:
@@ -1213,34 +1289,15 @@ def retrieve_measurements():
         maintenance_calories = calculate_maintenance_calories(weight_dict, food_dict)
     return jsonify(maintenance_calories)
 
-@app.route('/api/calc', methods=['GET'])
-def calculate_cals():
-    auth = request.headers.get('Authorization')
-    if auth:
-        token = auth.split(" ")[1]
-        user_data = get_user_from_token(token)
-        username = user_data[1]
-
-    food_query = text(""" SELECT * FROM logged_food
-    WHERE user_id = :username
-    """)
-
-    weight_query = text(""" SELECT * FROM user_weight
-    WHERE username = :username
-    """)
-    with user_engine.connect() as conn:
-        food_result = conn.execute(food_query, {'username': username})
-        weight_result = conn.execute(weight_query, {'username': username})
-    for i in weight_result:
-        print(i)
-    return 'balls'
-@app.route('/api/getCurrentWeight', methods=['GET'])
+# Retreive current weight
+@app.route('/getCurrentWeight', methods=['GET'])
 def calc_current_weight():
     auth = request.headers.get('Authorization')
     if auth:
         token = auth.split(" ")[1]
         user_data = get_user_from_token(token)
         username = user_data[1]
+        
         query = text("""
             SELECT weight, recorded_at, unit
             FROM user_weight
@@ -1256,6 +1313,7 @@ def calc_current_weight():
             AND recorded_at < CURRENT_TIMESTAMP - INTERVAL '7 days'
             ORDER BY recorded_at DESC
         """)
+        
         with user_engine.connect() as conn:
             results = conn.execute(query, {'username': username})
             results_prev = conn.execute(previous_week_query, {'username': username})
@@ -1265,16 +1323,22 @@ def calc_current_weight():
             for result in results:
                 total_weight_cur += result[0]
                 weight_count_cur += 1
-            avg_weight = total_weight_cur / weight_count_cur
-
+            
+            avg_weight = total_weight_cur / weight_count_cur if weight_count_cur > 0 else 0
+            
             total_weight_prev = 0
             weight_count_prev = 0
             for result in results_prev:
                 total_weight_prev += result[0]
                 weight_count_prev += 1
-            avg_weight_prev = total_weight_prev / weight_count_prev
-    return jsonify(avg_weight, avg_weight_prev)
-@app.route('/api/getStats', methods=['GET'])
+            
+            avg_weight_prev = total_weight_prev / weight_count_prev if weight_count_prev > 0 else 0
+
+        return jsonify({"avg_weight": avg_weight, "avg_weight_prev": avg_weight_prev})
+    else:
+        return jsonify({"error": "Unauthorized"}), 401
+# Get goal nutrients
+@app.route('/getStats', methods=['GET'])
 def retrieve_user_stats():
     auth = request.headers.get('Authorization')
     if auth:
@@ -1291,7 +1355,6 @@ def retrieve_user_stats():
             print(result)
         
         if result:
-            # Convert the SQL result to a dictionary
             user_stats = {
                 'goal_calories': result[0],
                 'goal_protein': result[1],
@@ -1302,29 +1365,27 @@ def retrieve_user_stats():
                 'activity_level': result[6],
                 'gender': result[7]
             }
-            return jsonify(user_stats)  # Return the JSON response
+            return jsonify(user_stats)
         else:
             return jsonify({'error': 'User not found'}), 404
     return jsonify({'error': 'Authorization token missing'}), 401
 
+# Convert inches to cm
 def height_to_cm(feet, inches):
     return (feet * 30.48) + (inches * 2.54)
-
-# Convert weight from pounds to kilograms
+# convert pounds to kilograms
 def weight_to_kg(weight_lbs):
     return weight_lbs * 0.453592
-
-# Calculate BMR for men or women
+# Calculate base metabolic rate
 def calculate_bmr(weight_kg, height_cm, age, gender):
-    age = int(age)  # Convert age to an integer
-    gender = gender.lower()  # Convert gender to lowercase to avoid case sensitivity issues
+    age = int(age)
+    gender = gender.lower()
     if gender == 'male':
         return 88.362 + (13.397 * weight_kg) + (4.799 * height_cm) - (5.677 * age)
     elif gender == 'female':
         return 447.593 + (9.247 * weight_kg) + (3.098 * height_cm) - (4.330 * age)
     return 0
-
-# Calculate maintenance calories
+# Calculate calorie needs based on activity level
 def calculate_calories(bmr, activity_level):
     activity_multipliers = {
         'Sedentary': 1.2,
@@ -1335,7 +1396,8 @@ def calculate_calories(bmr, activity_level):
     }
     return bmr * activity_multipliers.get(activity_level, 1.2)
 
-@app.route('/api/calculateCalorieNeeds', methods=["POST"])
+# Calculate maintenance calories
+@app.route('/calculateCalorieNeeds', methods=["POST"])
 def calculate_calorie_needs():
     auth = request.headers.get('Authorization')
     if auth:
@@ -1350,7 +1412,7 @@ def calculate_calorie_needs():
     height_inches = int(data.get('heightInches', 0))
     weight_lbs = float(data.get('weight', 0))
     activity_level = data.get('activityLevel', 'Sedentary')
-    age = int(data['age'])  # Convert age to an integer
+    age = int(data['age'])
     gender = data['gender'] 
 
     height_cm = height_to_cm(height_feet, height_inches)
@@ -1362,7 +1424,8 @@ def calculate_calorie_needs():
     
     return jsonify(maintenance_calories)
 
-@app.route('/api/saveCalculatedMacros', methods=['POST'])
+# Store goal macronutrients and user information
+@app.route('/saveCalculatedMacros', methods=['POST'])
 def save_calculated_macros():
     auth = request.headers.get('Authorization')
     if auth:
@@ -1400,7 +1463,8 @@ def save_calculated_macros():
     print(data)
     return "Success"
 
-@app.route('/api/createFood', methods=["POST"])
+# Create custom food
+@app.route('/createFood', methods=["POST"])
 def create_food():
     auth = request.headers.get('Authorization')
     if auth:
@@ -1410,12 +1474,10 @@ def create_food():
 
     data = request.get_json()
 
-    # Replace empty strings with None (which translates to NULL in SQL)
     for key, value in data.items():
         if value == '':
             data[key] = 0
     
-    # Add the username and micronutrients fields to data
     data['username'] = username
     data['micronutrients'] = f"Iron: {data.get('iron', '')}, Calcium: {data.get('calcium', '')}, Vitamin D: {data.get('vitaminD', '')}, Potassium: {data.get('potassium', '')}"
 
@@ -1466,8 +1528,8 @@ def create_food():
         conn.commit()
 
     return 'Food created successfully'
-
-@app.route('/api/saveCoachSettings', methods=['POST'])
+# Save coach settings
+@app.route('/saveCoachSettings', methods=['POST'])
 def save_coach_settings():
     data = request.get_json()
     print(data)
@@ -1485,7 +1547,6 @@ def save_coach_settings():
     calorie_reminders = data['calorieReminders']
     progress_updates = data['progressUpdates']
     
-    # SQL query to update the user's settings
     query = text("""
         UPDATE users
         SET coach_enabled = :coach_enabled,
@@ -1498,7 +1559,6 @@ def save_coach_settings():
         WHERE username = :username
     """)
     
-    # Execute the query
     with user_engine.connect() as conn:
         conn.execute(query, {
             'coach_enabled': coach_enabled,
@@ -1514,7 +1574,8 @@ def save_coach_settings():
     
     return "success"
 
-@app.route('/api/nutritionTrendsCoach', methods=['GET'])
+# Send randomized coach messages
+@app.route('/nutritionTrendsCoach', methods=['GET'])
 def send_trend_messages():
     auth = request.headers.get('Authorization')
     cals = request.args.get('cals')
@@ -1961,10 +2022,9 @@ def send_trend_messages():
         return_values.append("Looks good, keep it up")
     
     return return_values
-def check_macros_calories(meal_data):
-    return 'c'
 
-@app.route('/api/getGoals', methods=['GET'])
+# Retreive user data
+@app.route('/getGoals', methods=['GET'])
 def get_goals():
     auth = request.headers.get('Authorization')
     if auth:
@@ -1972,18 +2032,40 @@ def get_goals():
         user_data = get_user_from_token(token)
         return jsonify(dict(user_data._mapping))
 
-@app.route('/api/manageLabel', methods=['GET', 'POST'])
+# Handle label image(In Progress)
+@app.route('/manageLabel', methods=['GET', 'POST'])
+
+# Process image upload
 def upload_image():
-    sample_image = 'IMG_6748.HEIC'
-    img = Image.open(sample_image)
-
-    detected_text = pytesseract.image_to_string(img)
-
-    nutritional_info = parse_nutritional_values(detected_text)
-    ingredients = parse_ingredients(detected_text)
+    print('uploading')
+    if request.method == 'POST':
+        image_file = request.files.get('image')
+        print(image_file)
+        if not image_file:
+            return jsonify({'error': 'No image file provided.'}), 400
+    image_file = resize_image(image_file)
+    detected_text = perform_ocr(image_file)
+    on_ing = False
+    ingredients = []
+    for d in detected_text.split(' '):
+        if on_ing:
+            ingredients.append(d)
+        score = fuzz.ratio(d, 'INGREDIENTS')
+        if score > 85:
+            on_ing = True
+        if on_ing and "." in d:
+            on_ing = False
     print(ingredients)
-    print(nutritional_info)
-    return 'balls'
+    if detected_text:
+        nutritional_values = parse_nutritional_values(detected_text)
+        ingredients = parse_ingredients(detected_text)
+
+        print("Nutritional Values:", nutritional_values)
+        print("Ingredients:", ingredients)
+        return nutritional_values, ingredients
+    else:
+        return {}, {}
+# Parse nutritional values from image
 def parse_nutritional_values(text):
     patterns = {
         "serving_size": r"serving size.*?(\d+.*?[gml])",
@@ -2001,7 +2083,6 @@ def parse_nutritional_values(text):
         "calcium": r"calcium.*?(\d+mg)",
         "iron": r"iron.*?(\d+mg)",
         "potassium": r"potassium.*?(\d+mg)",
-
         "vitamin_a": r"vitamin a.*?(\d+%)",
         "vitamin_c": r"vitamin c.*?(\d+%)",
         "vitamin_b6": r"vitamin b6.*?(\d+%)",
@@ -2016,14 +2097,39 @@ def parse_nutritional_values(text):
         if match:
             nutritional_values[key] = match.group(1)
     return nutritional_values
-
+# Parse ingredients from image
 def parse_ingredients(text):
     match = re.search(r"ingredients[:\s]+([a-zA-Z0-9,.\s]+)", text, re.IGNORECASE)
     if match:
         ingredients = match.group(1).strip()
         return ingredients
     return None
+# Perform OCR analysis of image
+def perform_ocr(image_path):
+    reader = easyocr.Reader(['en'], gpu=True)
+    result = reader.readtext(image_path)
+    text = ' '.join([r[1] for r in result])
+    return text
+# Adjust image size
+def resize_image(image_file):
+    image = Image.open(image_file)
+    image = image.resize((1024, 1024))
+    return image
+# Coach weight testing
+@app.route('/getCoachWeight', methods=['GET', 'POST'])
+def get_coach_weight():
+    try:
+        auth = request.headers.get('Authorization')
+        if auth:
+            token = auth.split(' ')[1]
+            user_data = get_user_from_token(token)
+            print(user_data)
+        else:
+            return jsonify({"error": "Authorization header missing"}), 401
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
-
+#Compile
 if __name__ == '__main__':
     app.run(debug=True)
